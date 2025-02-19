@@ -1,0 +1,43 @@
+{
+  "name": "@myx0m0p/pump-client",
+  "version": "0.1.0",
+  "description": "Solana Pump Program TypeScript Client",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/myx0m0p/pump-client.git"
+  },
+  "keywords": [
+    "solana",
+    "web3",
+    "pump",
+    "client"
+  ],
+  "author": "Andre P<andrepaca.dev@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "gen": "node codama/codama.mjs",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc"
+  },
+  "devDependencies": {
+    "@codama/nodes-from-anchor": "^1.1.6",
+    "@codama/renderers-js": "^1.2.5",
+    "@types/node": "^20.11.24",
+    "codama": "^1.2.6",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^2.0.0"
+  }
+}
