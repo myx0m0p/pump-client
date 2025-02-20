@@ -16,10 +16,7 @@ import {
 import {
   type ParsedBuyInstruction,
   type ParsedCreateInstruction,
-  type ParsedInitializeInstruction,
   type ParsedSellInstruction,
-  type ParsedSetParamsInstruction,
-  type ParsedWithdrawInstruction,
 } from '../instructions';
 
 export const PUMP_PROGRAM_ADDRESS =
@@ -62,40 +59,15 @@ export function identifyPumpAccount(
 }
 
 export enum PumpInstruction {
-  Initialize,
-  SetParams,
   Create,
   Buy,
   Sell,
-  Withdraw,
 }
 
 export function identifyPumpInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): PumpInstruction {
   const data = 'data' in instruction ? instruction.data : instruction;
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([175, 175, 109, 31, 13, 152, 155, 237])
-      ),
-      0
-    )
-  ) {
-    return PumpInstruction.Initialize;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([27, 234, 178, 52, 147, 2, 187, 141])
-      ),
-      0
-    )
-  ) {
-    return PumpInstruction.SetParams;
-  }
   if (
     containsBytes(
       data,
@@ -129,17 +101,6 @@ export function identifyPumpInstruction(
   ) {
     return PumpInstruction.Sell;
   }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([183, 18, 70, 156, 148, 109, 161, 34])
-      ),
-      0
-    )
-  ) {
-    return PumpInstruction.Withdraw;
-  }
   throw new Error(
     'The provided instruction could not be identified as a pump instruction.'
   );
@@ -149,18 +110,9 @@ export type ParsedPumpInstruction<
   TProgram extends string = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
 > =
   | ({
-      instructionType: PumpInstruction.Initialize;
-    } & ParsedInitializeInstruction<TProgram>)
-  | ({
-      instructionType: PumpInstruction.SetParams;
-    } & ParsedSetParamsInstruction<TProgram>)
-  | ({
       instructionType: PumpInstruction.Create;
     } & ParsedCreateInstruction<TProgram>)
   | ({ instructionType: PumpInstruction.Buy } & ParsedBuyInstruction<TProgram>)
   | ({
       instructionType: PumpInstruction.Sell;
-    } & ParsedSellInstruction<TProgram>)
-  | ({
-      instructionType: PumpInstruction.Withdraw;
-    } & ParsedWithdrawInstruction<TProgram>);
+    } & ParsedSellInstruction<TProgram>);

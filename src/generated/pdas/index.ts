@@ -6,9 +6,4 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from './buy';
-export * from './create';
-export * from './initialize';
-export * from './sell';
-export * from './setParams';
-export * from './withdraw';
+export * from './bondingCurve';

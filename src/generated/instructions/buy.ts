@@ -32,8 +32,13 @@ import {
   type WritableAccount,
   type WritableSignerAccount,
 } from '@solana/web3.js';
+import { findBondingCurvePda } from '../pdas';
 import { PUMP_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+import {
+  expectAddress,
+  getAccountMetaFactory,
+  type ResolvedAccount,
+} from '../shared';
 
 export const BUY_DISCRIMINATOR = new Uint8Array([
   102, 6, 61, 18, 1, 218, 235, 234,
@@ -45,8 +50,12 @@ export function getBuyDiscriminatorBytes() {
 
 export type BuyInstruction<
   TProgram extends string = typeof PUMP_PROGRAM_ADDRESS,
-  TAccountGlobal extends string | IAccountMeta<string> = string,
-  TAccountFeeRecipient extends string | IAccountMeta<string> = string,
+  TAccountGlobal extends
+    | string
+    | IAccountMeta<string> = '4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf',
+  TAccountFeeRecipient extends
+    | string
+    | IAccountMeta<string> = 'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM',
   TAccountMint extends string | IAccountMeta<string> = string,
   TAccountBondingCurve extends string | IAccountMeta<string> = string,
   TAccountAssociatedBondingCurve extends string | IAccountMeta<string> = string,
@@ -61,8 +70,12 @@ export type BuyInstruction<
   TAccountRent extends
     | string
     | IAccountMeta<string> = 'SysvarRent111111111111111111111111111111111',
-  TAccountEventAuthority extends string | IAccountMeta<string> = string,
-  TAccountProgram extends string | IAccountMeta<string> = string,
+  TAccountEventAuthority extends
+    | string
+    | IAccountMeta<string> = 'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1',
+  TAccountProgram extends
+    | string
+    | IAccountMeta<string> = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -148,6 +161,184 @@ export function getBuyInstructionDataCodec(): Codec<
   );
 }
 
+export type BuyAsyncInput<
+  TAccountGlobal extends string = string,
+  TAccountFeeRecipient extends string = string,
+  TAccountMint extends string = string,
+  TAccountBondingCurve extends string = string,
+  TAccountAssociatedBondingCurve extends string = string,
+  TAccountAssociatedUser extends string = string,
+  TAccountUser extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountTokenProgram extends string = string,
+  TAccountRent extends string = string,
+  TAccountEventAuthority extends string = string,
+  TAccountProgram extends string = string,
+> = {
+  global?: Address<TAccountGlobal>;
+  feeRecipient?: Address<TAccountFeeRecipient>;
+  mint: Address<TAccountMint>;
+  bondingCurve?: Address<TAccountBondingCurve>;
+  associatedBondingCurve: Address<TAccountAssociatedBondingCurve>;
+  associatedUser: Address<TAccountAssociatedUser>;
+  user: TransactionSigner<TAccountUser>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  tokenProgram?: Address<TAccountTokenProgram>;
+  rent?: Address<TAccountRent>;
+  eventAuthority?: Address<TAccountEventAuthority>;
+  program?: Address<TAccountProgram>;
+  amount: BuyInstructionDataArgs['amount'];
+  maxSolCost: BuyInstructionDataArgs['maxSolCost'];
+};
+
+export async function getBuyInstructionAsync<
+  TAccountGlobal extends string,
+  TAccountFeeRecipient extends string,
+  TAccountMint extends string,
+  TAccountBondingCurve extends string,
+  TAccountAssociatedBondingCurve extends string,
+  TAccountAssociatedUser extends string,
+  TAccountUser extends string,
+  TAccountSystemProgram extends string,
+  TAccountTokenProgram extends string,
+  TAccountRent extends string,
+  TAccountEventAuthority extends string,
+  TAccountProgram extends string,
+  TProgramAddress extends Address = typeof PUMP_PROGRAM_ADDRESS,
+>(
+  input: BuyAsyncInput<
+    TAccountGlobal,
+    TAccountFeeRecipient,
+    TAccountMint,
+    TAccountBondingCurve,
+    TAccountAssociatedBondingCurve,
+    TAccountAssociatedUser,
+    TAccountUser,
+    TAccountSystemProgram,
+    TAccountTokenProgram,
+    TAccountRent,
+    TAccountEventAuthority,
+    TAccountProgram
+  >,
+  config?: { programAddress?: TProgramAddress }
+): Promise<
+  BuyInstruction<
+    TProgramAddress,
+    TAccountGlobal,
+    TAccountFeeRecipient,
+    TAccountMint,
+    TAccountBondingCurve,
+    TAccountAssociatedBondingCurve,
+    TAccountAssociatedUser,
+    TAccountUser,
+    TAccountSystemProgram,
+    TAccountTokenProgram,
+    TAccountRent,
+    TAccountEventAuthority,
+    TAccountProgram
+  >
+> {
+  // Program address.
+  const programAddress = config?.programAddress ?? PUMP_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    global: { value: input.global ?? null, isWritable: false },
+    feeRecipient: { value: input.feeRecipient ?? null, isWritable: true },
+    mint: { value: input.mint ?? null, isWritable: false },
+    bondingCurve: { value: input.bondingCurve ?? null, isWritable: true },
+    associatedBondingCurve: {
+      value: input.associatedBondingCurve ?? null,
+      isWritable: true,
+    },
+    associatedUser: { value: input.associatedUser ?? null, isWritable: true },
+    user: { value: input.user ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    rent: { value: input.rent ?? null, isWritable: false },
+    eventAuthority: { value: input.eventAuthority ?? null, isWritable: false },
+    program: { value: input.program ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.global.value) {
+    accounts.global.value =
+      '4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf' as Address<'4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf'>;
+  }
+  if (!accounts.feeRecipient.value) {
+    accounts.feeRecipient.value =
+      'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM' as Address<'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM'>;
+  }
+  if (!accounts.bondingCurve.value) {
+    accounts.bondingCurve.value = await findBondingCurvePda({
+      mint: expectAddress(accounts.mint.value),
+    });
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+  if (!accounts.tokenProgram.value) {
+    accounts.tokenProgram.value =
+      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+  }
+  if (!accounts.rent.value) {
+    accounts.rent.value =
+      'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
+  }
+  if (!accounts.eventAuthority.value) {
+    accounts.eventAuthority.value =
+      'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1' as Address<'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1'>;
+  }
+  if (!accounts.program.value) {
+    accounts.program.value =
+      '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P' as Address<'6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.global),
+      getAccountMeta(accounts.feeRecipient),
+      getAccountMeta(accounts.mint),
+      getAccountMeta(accounts.bondingCurve),
+      getAccountMeta(accounts.associatedBondingCurve),
+      getAccountMeta(accounts.associatedUser),
+      getAccountMeta(accounts.user),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.tokenProgram),
+      getAccountMeta(accounts.rent),
+      getAccountMeta(accounts.eventAuthority),
+      getAccountMeta(accounts.program),
+    ],
+    programAddress,
+    data: getBuyInstructionDataEncoder().encode(args as BuyInstructionDataArgs),
+  } as BuyInstruction<
+    TProgramAddress,
+    TAccountGlobal,
+    TAccountFeeRecipient,
+    TAccountMint,
+    TAccountBondingCurve,
+    TAccountAssociatedBondingCurve,
+    TAccountAssociatedUser,
+    TAccountUser,
+    TAccountSystemProgram,
+    TAccountTokenProgram,
+    TAccountRent,
+    TAccountEventAuthority,
+    TAccountProgram
+  >;
+
+  return instruction;
+}
+
 export type BuyInput<
   TAccountGlobal extends string = string,
   TAccountFeeRecipient extends string = string,
@@ -162,8 +353,8 @@ export type BuyInput<
   TAccountEventAuthority extends string = string,
   TAccountProgram extends string = string,
 > = {
-  global: Address<TAccountGlobal>;
-  feeRecipient: Address<TAccountFeeRecipient>;
+  global?: Address<TAccountGlobal>;
+  feeRecipient?: Address<TAccountFeeRecipient>;
   mint: Address<TAccountMint>;
   bondingCurve: Address<TAccountBondingCurve>;
   associatedBondingCurve: Address<TAccountAssociatedBondingCurve>;
@@ -172,8 +363,8 @@ export type BuyInput<
   systemProgram?: Address<TAccountSystemProgram>;
   tokenProgram?: Address<TAccountTokenProgram>;
   rent?: Address<TAccountRent>;
-  eventAuthority: Address<TAccountEventAuthority>;
-  program: Address<TAccountProgram>;
+  eventAuthority?: Address<TAccountEventAuthority>;
+  program?: Address<TAccountProgram>;
   amount: BuyInstructionDataArgs['amount'];
   maxSolCost: BuyInstructionDataArgs['maxSolCost'];
 };
@@ -253,6 +444,14 @@ export function getBuyInstruction<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.global.value) {
+    accounts.global.value =
+      '4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf' as Address<'4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf'>;
+  }
+  if (!accounts.feeRecipient.value) {
+    accounts.feeRecipient.value =
+      'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM' as Address<'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM'>;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
@@ -264,6 +463,14 @@ export function getBuyInstruction<
   if (!accounts.rent.value) {
     accounts.rent.value =
       'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
+  }
+  if (!accounts.eventAuthority.value) {
+    accounts.eventAuthority.value =
+      'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1' as Address<'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1'>;
+  }
+  if (!accounts.program.value) {
+    accounts.program.value =
+      '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P' as Address<'6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'>;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
