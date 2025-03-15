@@ -23,14 +23,26 @@ export const PUMP_PROGRAM_ADDRESS =
   '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P' as Address<'6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'>;
 
 export enum PumpAccount {
-  Global,
   BondingCurve,
+  Global,
+  LastWithdraw,
 }
 
 export function identifyPumpAccount(
   account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): PumpAccount {
   const data = 'data' in account ? account.data : account;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([23, 183, 248, 55, 96, 216, 172, 96])
+      ),
+      0
+    )
+  ) {
+    return PumpAccount.BondingCurve;
+  }
   if (
     containsBytes(
       data,
@@ -46,12 +58,12 @@ export function identifyPumpAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([23, 183, 248, 55, 96, 216, 172, 96])
+        new Uint8Array([203, 18, 220, 103, 120, 145, 187, 2])
       ),
       0
     )
   ) {
-    return PumpAccount.BondingCurve;
+    return PumpAccount.LastWithdraw;
   }
   throw new Error(
     'The provided account could not be identified as a pump account.'
@@ -59,8 +71,8 @@ export function identifyPumpAccount(
 }
 
 export enum PumpInstruction {
-  Create,
   Buy,
+  Create,
   Sell,
 }
 
@@ -72,23 +84,23 @@ export function identifyPumpInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([24, 30, 200, 40, 5, 28, 7, 119])
-      ),
-      0
-    )
-  ) {
-    return PumpInstruction.Create;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([102, 6, 61, 18, 1, 218, 235, 234])
       ),
       0
     )
   ) {
     return PumpInstruction.Buy;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([24, 30, 200, 40, 5, 28, 7, 119])
+      ),
+      0
+    )
+  ) {
+    return PumpInstruction.Create;
   }
   if (
     containsBytes(
@@ -109,10 +121,10 @@ export function identifyPumpInstruction(
 export type ParsedPumpInstruction<
   TProgram extends string = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
 > =
+  | ({ instructionType: PumpInstruction.Buy } & ParsedBuyInstruction<TProgram>)
   | ({
       instructionType: PumpInstruction.Create;
     } & ParsedCreateInstruction<TProgram>)
-  | ({ instructionType: PumpInstruction.Buy } & ParsedBuyInstruction<TProgram>)
   | ({
       instructionType: PumpInstruction.Sell;
     } & ParsedSellInstruction<TProgram>);

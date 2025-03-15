@@ -1,6 +1,6 @@
 {
   "name": "@myx0m0p/pump-client",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Solana Pump Program TypeScript Client",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

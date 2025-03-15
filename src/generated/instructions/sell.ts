@@ -10,8 +10,10 @@ import {
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
+  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
+  getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
   getU64Decoder,
@@ -32,7 +34,6 @@ import {
   type WritableAccount,
   type WritableSignerAccount,
 } from '@solana/web3.js';
-import { findBondingCurvePda } from '../pdas';
 import { PUMP_PROGRAM_ADDRESS } from '../programs';
 import {
   expectAddress,
@@ -50,12 +51,8 @@ export function getSellDiscriminatorBytes() {
 
 export type SellInstruction<
   TProgram extends string = typeof PUMP_PROGRAM_ADDRESS,
-  TAccountGlobal extends
-    | string
-    | IAccountMeta<string> = '4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf',
-  TAccountFeeRecipient extends
-    | string
-    | IAccountMeta<string> = 'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM',
+  TAccountGlobal extends string | IAccountMeta<string> = string,
+  TAccountFeeRecipient extends string | IAccountMeta<string> = string,
   TAccountMint extends string | IAccountMeta<string> = string,
   TAccountBondingCurve extends string | IAccountMeta<string> = string,
   TAccountAssociatedBondingCurve extends string | IAccountMeta<string> = string,
@@ -70,12 +67,8 @@ export type SellInstruction<
   TAccountTokenProgram extends
     | string
     | IAccountMeta<string> = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-  TAccountEventAuthority extends
-    | string
-    | IAccountMeta<string> = 'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1',
-  TAccountProgram extends
-    | string
-    | IAccountMeta<string> = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
+  TAccountEventAuthority extends string | IAccountMeta<string> = string,
+  TAccountProgram extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -176,17 +169,17 @@ export type SellAsyncInput<
   TAccountProgram extends string = string,
 > = {
   global?: Address<TAccountGlobal>;
-  feeRecipient?: Address<TAccountFeeRecipient>;
+  feeRecipient: Address<TAccountFeeRecipient>;
   mint: Address<TAccountMint>;
   bondingCurve?: Address<TAccountBondingCurve>;
-  associatedBondingCurve: Address<TAccountAssociatedBondingCurve>;
+  associatedBondingCurve?: Address<TAccountAssociatedBondingCurve>;
   associatedUser: Address<TAccountAssociatedUser>;
   user: TransactionSigner<TAccountUser>;
   systemProgram?: Address<TAccountSystemProgram>;
   associatedTokenProgram?: Address<TAccountAssociatedTokenProgram>;
   tokenProgram?: Address<TAccountTokenProgram>;
   eventAuthority?: Address<TAccountEventAuthority>;
-  program?: Address<TAccountProgram>;
+  program: Address<TAccountProgram>;
   amount: SellInstructionDataArgs['amount'];
   minSolOutput: SellInstructionDataArgs['minSolOutput'];
 };
@@ -272,16 +265,41 @@ export async function getSellInstructionAsync<
 
   // Resolve default values.
   if (!accounts.global.value) {
-    accounts.global.value =
-      '4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf' as Address<'4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf'>;
-  }
-  if (!accounts.feeRecipient.value) {
-    accounts.feeRecipient.value =
-      'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM' as Address<'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM'>;
+    accounts.global.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(new Uint8Array([103, 108, 111, 98, 97, 108])),
+      ],
+    });
   }
   if (!accounts.bondingCurve.value) {
-    accounts.bondingCurve.value = await findBondingCurvePda({
-      mint: expectAddress(accounts.mint.value),
+    accounts.bondingCurve.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(
+          new Uint8Array([
+            98, 111, 110, 100, 105, 110, 103, 45, 99, 117, 114, 118, 101,
+          ])
+        ),
+        getAddressEncoder().encode(expectAddress(accounts.mint.value)),
+      ],
+    });
+  }
+  if (!accounts.associatedBondingCurve.value) {
+    accounts.associatedBondingCurve.value = await getProgramDerivedAddress({
+      programAddress:
+        'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>,
+      seeds: [
+        getAddressEncoder().encode(expectAddress(accounts.bondingCurve.value)),
+        getBytesEncoder().encode(
+          new Uint8Array([
+            6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235,
+            121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133,
+            126, 255, 0, 169,
+          ])
+        ),
+        getAddressEncoder().encode(expectAddress(accounts.mint.value)),
+      ],
     });
   }
   if (!accounts.systemProgram.value) {
@@ -297,12 +315,17 @@ export async function getSellInstructionAsync<
       'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
   }
   if (!accounts.eventAuthority.value) {
-    accounts.eventAuthority.value =
-      'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1' as Address<'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1'>;
-  }
-  if (!accounts.program.value) {
-    accounts.program.value =
-      '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P' as Address<'6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'>;
+    accounts.eventAuthority.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(
+          new Uint8Array([
+            95, 95, 101, 118, 101, 110, 116, 95, 97, 117, 116, 104, 111, 114,
+            105, 116, 121,
+          ])
+        ),
+      ],
+    });
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
@@ -358,8 +381,8 @@ export type SellInput<
   TAccountEventAuthority extends string = string,
   TAccountProgram extends string = string,
 > = {
-  global?: Address<TAccountGlobal>;
-  feeRecipient?: Address<TAccountFeeRecipient>;
+  global: Address<TAccountGlobal>;
+  feeRecipient: Address<TAccountFeeRecipient>;
   mint: Address<TAccountMint>;
   bondingCurve: Address<TAccountBondingCurve>;
   associatedBondingCurve: Address<TAccountAssociatedBondingCurve>;
@@ -368,8 +391,8 @@ export type SellInput<
   systemProgram?: Address<TAccountSystemProgram>;
   associatedTokenProgram?: Address<TAccountAssociatedTokenProgram>;
   tokenProgram?: Address<TAccountTokenProgram>;
-  eventAuthority?: Address<TAccountEventAuthority>;
-  program?: Address<TAccountProgram>;
+  eventAuthority: Address<TAccountEventAuthority>;
+  program: Address<TAccountProgram>;
   amount: SellInstructionDataArgs['amount'];
   minSolOutput: SellInstructionDataArgs['minSolOutput'];
 };
@@ -452,14 +475,6 @@ export function getSellInstruction<
   const args = { ...input };
 
   // Resolve default values.
-  if (!accounts.global.value) {
-    accounts.global.value =
-      '4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf' as Address<'4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf'>;
-  }
-  if (!accounts.feeRecipient.value) {
-    accounts.feeRecipient.value =
-      'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM' as Address<'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM'>;
-  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
@@ -471,14 +486,6 @@ export function getSellInstruction<
   if (!accounts.tokenProgram.value) {
     accounts.tokenProgram.value =
       'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
-  }
-  if (!accounts.eventAuthority.value) {
-    accounts.eventAuthority.value =
-      'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1' as Address<'Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1'>;
-  }
-  if (!accounts.program.value) {
-    accounts.program.value =
-      '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P' as Address<'6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'>;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

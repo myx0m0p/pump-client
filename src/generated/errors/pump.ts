@@ -30,6 +30,8 @@ export const PUMP_ERROR__BONDING_CURVE_COMPLETE = 0x1775; // 6005
 export const PUMP_ERROR__BONDING_CURVE_NOT_COMPLETE = 0x1776; // 6006
 /** NotInitialized: The program is not initialized. */
 export const PUMP_ERROR__NOT_INITIALIZED = 0x1777; // 6007
+/** WithdrawTooFrequent: Withdraw too frequent */
+export const PUMP_ERROR__WITHDRAW_TOO_FREQUENT = 0x1778; // 6008
 
 export type PumpError =
   | typeof PUMP_ERROR__ALREADY_INITIALIZED
@@ -39,7 +41,8 @@ export type PumpError =
   | typeof PUMP_ERROR__NOT_AUTHORIZED
   | typeof PUMP_ERROR__NOT_INITIALIZED
   | typeof PUMP_ERROR__TOO_LITTLE_SOL_RECEIVED
-  | typeof PUMP_ERROR__TOO_MUCH_SOL_REQUIRED;
+  | typeof PUMP_ERROR__TOO_MUCH_SOL_REQUIRED
+  | typeof PUMP_ERROR__WITHDRAW_TOO_FREQUENT;
 
 let pumpErrorMessages: Record<PumpError, string> | undefined;
 if (process.env.NODE_ENV !== 'production') {
@@ -52,6 +55,7 @@ if (process.env.NODE_ENV !== 'production') {
     [PUMP_ERROR__NOT_INITIALIZED]: `The program is not initialized.`,
     [PUMP_ERROR__TOO_LITTLE_SOL_RECEIVED]: `slippage: Too little SOL received to sell the given amount of tokens.`,
     [PUMP_ERROR__TOO_MUCH_SOL_REQUIRED]: `slippage: Too much SOL required to buy the given amount of tokens.`,
+    [PUMP_ERROR__WITHDRAW_TOO_FREQUENT]: `Withdraw too frequent`,
   };
 }
 
